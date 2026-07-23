@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>韓國集運費計算系統</title>
+<style>
+  body { 
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+    padding: 20px; 
+    max-width: 980px; 
+    margin: 0 auto; 
+    background-color: #f8f9fa;
+    color: #333;
+  }
+  h2, h3 { margin-bottom: 12px; color: #222; }
+  .control-panel {
+    background: #fff;
+    padding: 15px 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    margin-bottom: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  label { font-weight: bold; }
+  input[type="text"], input[type="number"] { 
+    padding: 6px 10px; 
+    border: 1px solid #ccc; 
+    border-radius: 4px;
+    width: 90px;
+  }
+  table input { width: 90%; margin: 0; box-sizing: border-box; }
+  table { 
+    border-collapse: collapse; 
+    width: 100%; 
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  }
+  td, th { border: 1px solid #eee; padding: 10px; text-align: center; }
+  th { background-color: #f1f3f5; font-weight: 600; }
+  tr:hover { background-color: #fdfdfd; }
+  .btn { 
+    padding: 8px 14px; 
+    border: none; 
+    border-radius: 5px; 
+    cursor: pointer; 
+    font-weight: bold;
+    transition: background 0.2s;
+  }
+  .btn-add { background-color: #40c057; color: white; }
+  .btn-add:hover { background-color: #37b24d; }
+  .btn-copy { background-color: #228be6; color: white; margin-top: 8px; }
+  .btn-copy:hover { background-color: #1c7ed6; }
+  .btn-del { background: none; border: none; cursor: pointer; font-size: 16px; }
+  textarea { 
+    width: 100%; 
+    height: 200px; 
+    margin-top: 8px; 
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .summary-row { font-weight: bold; background-color: #f8f9fa; }
+  .calc-box {
+    background: #e7f5ff;
+    padding: 6px 12px;
+    border-radius: 6px;
+    color: #1864ab;
+    font-weight: bold;
+    font-size: 14px;
+  }
+</style>
+</head>
+
+<body>
+
+<h2>📦 韓國集運系統</h2>
+
+<div class="control-panel">
+  <label>批次：</label>
+  <input id="batch" value="批次1" style="width: 70px;" onchange="loadBatch()">
+
+  <label>運費：</label>
+  <input id="shipping" type="number" value="1981" oninput="onDataChange()">
+
+  <label>關稅：</label>
+  <input id="tax" type="number" value="460" oninput="onDataChange()">
+
+  <label>包裹總重(kg)：</label>
+  <input id="total-package-weight" type="number" step="0.01" value="2.5" oninput="onDataChange()">
+
+  <div class="calc-box">
+    推算外箱重：<span id="calculated-box-weight">0.00</span> kg
+  </div>
+
+  <button class="btn btn-add" onclick="addRow()">➕ 新增包裹</button>
+</div>
+
+<table id="table">
+  <thead>
+    <tr>
+      <th width="6%">序號</th>
+      <th width="16%">姓名</th>
+      <th width="18%">品項</th>
+      <th width="18%">單號</th>
+      <th width="12%">單件重量(kg)</th>
+      <th width="14%">含外箱重(kg)</th>
+      <th width="10%">費用</th>
+      <th width="6%">刪除</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+  <tfoot>
+    <tr class="summary-row">
+      <td colspan="4" style="text-align: right;">總計：</td>
+      <td id="total-item-weight">0 kg</td>
+      <td id="total-final-weight">0 kg</td>
+      <td id="total-cost-display">$0</td>
+      <td></td>
+    </tr>
+  </tfoot>
+</table>
+
+<h3>📱 LINE 通知訊息範本</h3>
+<textarea id="output" readonly></textarea>
+<button class="btn btn-copy" onclick="copyText()">📋 複製通知訊息</button>
+
+<script>
+window.onload = function() {
+  loadBatch();
+};
+
+function onDataChange() {
+  save();
+  calc();
+}
+
+function addRow(data = {}) {
+  let tbody = document.getElementById('tbody');
+  let r = tbody.insertRow(-1);
+
+  r.insertCell(0).innerText = tbody.rows.length;
+  r.insertCell(1).innerHTML = `<input value="${data.name || ''}" oninput="onDataChange()">`;
+  r.insertCell(2).innerHTML = `<input value="${data.product || ''}" oninput="onDataChange()">`;
+  r.insertCell(3).innerHTML = `<input value="${data.tracking || ''}" oninput="onDataChange()">`;
+  r.insertCell(4).innerHTML = `<input type="number" step="0.01" value="${data.weight || ''}" oninput="onDataChange()">`;
+  r.insertCell(5).innerText = '0.00'; // 含外箱重量
+  r.insertCell(6).innerText = '$0';    // 費用
+  r.insertCell(7).innerHTML = `<button class="btn-del" onclick="delRow(this)">❌</button>`;
+
+  onDataChange();
+}
+
+function delRow(btn) {
+  btn.parentNode.parentNode.remove();
+  updateIndex();
+  onDataChange();
+}
+
+function updateIndex() {
+  let tbody = document.getElementById('tbody');
+  for (let i = 0; i < tbody.rows.length; i++) {
+    tbody.rows[i].cells[0].innerText = i + 1;
+  }
+}
+
+function save() {
+  let batch = document.getElementById('batch').value;
+  let shipping = document.getElementById('shipping').value;
+  let tax = document.getElementById('tax').value;
+  let totalPkgWeight = document.getElementById('total-package-weight').value;
+
+  let tbody = document.getElementById('tbody');
+  let data = [];
+
+  for (let i = 0; i < tbody.rows.length; i++) {
+    data.push({
+      name: tbody.rows[i].cells[1].querySelector('input').value,
+      product: tbody.rows[i].cells[2].querySelector('input').value,
+      tracking: tbody.rows[i].cells[3].querySelector('input').value,
+      weight: tbody.rows[i].cells[4].querySelector('input').value
+    });
+  }
+
+  localStorage.setItem(batch, JSON.stringify({ data, shipping, tax, totalPkgWeight }));
+}
+
+function loadBatch() {
+  let batch = document.getElementById('batch').value;
+  let saved = localStorage.getItem(batch);
+  let tbody = document.getElementById('tbody');
+  
+  tbody.innerHTML = '';
+
+  if (saved) {
+    let obj = JSON.parse(saved);
+    document.getElementById('shipping').value = obj.shipping || 0;
+    document.getElementById('tax').value = obj.tax || 0;
+    document.getElementById('total-package-weight').value = obj.totalPkgWeight || 0;
+    if (obj.data && obj.data.length > 0) {
+      obj.data.forEach(d => addRow(d));
+    }
+  } else {
+    addRow();
+  }
+}
+
+function calc() {
+  let tbody = document.getElementById('tbody');
+  let shipping = +document.getElementById('shipping').value || 0;
+  let tax = +document.getElementById('tax').value || 0;
+  let totalPkgWeight = +document.getElementById('total-package-weight').value || 0; // 包裹總重
+  let totalCost = shipping + tax;
+
+  let rawWeights = [];
+  for (let i = 0; i < tbody.rows.length; i++) {
+    let val = parseFloat(tbody.rows[i].cells[4].querySelector('input').value);
+    rawWeights.push(isNaN(val) ? 0 : val);
+  }
+
+  let totalItemWeight = rawWeights.reduce((a, b) => a + b, 0); // 物品實重總和
+  
+  // 自動推算外箱重 (總重 - 商品實重總和)
+  let boxWeight = Math.max(0, totalPkgWeight - totalItemWeight);
+  document.getElementById('calculated-box-weight').innerText = boxWeight.toFixed(2);
+
+  let costs = [];
+  let itemWithBoxWeights = [];
+
+  // 計算分攤外箱後的重量與費用
+  for (let i = 0; i < rawWeights.length; i++) {
+    let ratio = totalItemWeight ? (rawWeights[i] / totalItemWeight) : 0;
+    
+    // 按比例分攤外箱重量
+    let finalW = rawWeights[i] + (boxWeight * ratio);
+    itemWithBoxWeights.push(finalW);
+
+    // 費用計算 (按重量比例分攤金額)
+    costs[i] = totalItemWeight ? Math.round(ratio * totalCost) : 0;
+  }
+
+  // 費用四捨五入差額補足
+  let diff = totalCost - costs.reduce((a, b) => a + b, 0);
+  if (costs.length > 0) costs[costs.length - 1] += diff;
+
+  // 按姓名合併統計
+  let merged = {};
+
+  for (let i = 0; i < tbody.rows.length; i++) {
+    let name = tbody.rows[i].cells[1].querySelector('input').value.trim() || "未命名";
+    let rawW = rawWeights[i];
+    let finalW = itemWithBoxWeights[i];
+    let c = costs[i];
+
+    // 更新表格顯示
+    tbody.rows[i].cells[5].innerText = `${finalW.toFixed(2)}`;
+    tbody.rows[i].cells[6].innerText = `$${c}`;
+
+    if (!merged[name]) merged[name] = { rawWeight: 0, finalWeight: 0, cost: 0, count: 0 };
+    merged[name].rawWeight += rawW;
+    merged[name].finalWeight += finalW;
+    merged[name].cost += c;
+    merged[name].count++;
+  }
+
+  // 更新頁面總計顯示
+  document.getElementById('total-item-weight').innerText = `${totalItemWeight.toFixed(2)} kg`;
+  document.getElementById('total-final-weight').innerText = `${totalPkgWeight.toFixed(2)} kg`;
+  document.getElementById('total-cost-display').innerText = `$${totalCost}`;
+
+  // 產生 LINE 通知文字
+  let text = `📦 韓國集運費用通知\n`;
+  text += `總費用：$${totalCost} (運費:${shipping} + 關稅:${tax})\n`;
+  text += `包裹總重：${totalPkgWeight.toFixed(2)} kg (商品實重:${totalItemWeight.toFixed(2)}kg + 推算外箱:${boxWeight.toFixed(2)}kg)\n`;
+  text += `-------------------\n`;
+
+  for (let n in merged) {
+    text += `${n}（${merged[n].count}件）\n`;
+    text += `重量：${merged[n].finalWeight.toFixed(2)} kg (含分攤外箱)\n`;
+    text += `應付：$${merged[n].cost}\n\n`;
+  }
+
+  text += "請核對後完成匯款，謝謝！🙏";
+  document.getElementById('output').value = text;
+}
+
+function copyText() {
+  let output = document.getElementById('output');
+  output.select();
+  document.execCommand('copy');
+  alert('已成功複製通知訊息至剪貼簿！');
+}
+</script>
+
+</body>
+</html>
