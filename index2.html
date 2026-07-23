@@ -26,7 +26,7 @@
     gap: 10px;
   }
   label { font-weight: bold; }
-  input[type="text"], input[type="number"] { 
+  input[type="text"], input[type="number"], select { 
     padding: 6px 10px; 
     border: 1px solid #ccc; 
     border-radius: 4px;
@@ -86,7 +86,7 @@
 
 <div class="control-panel">
   <label>批次：</label>
-  <input id="batch" value="批次1" style="width: 70px;" onchange="loadBatch()">
+  <input id="batch" value="批次1" style="width: 80px;" oninput="loadBatch()" placeholder="如:批次1">
 
   <label>運費：</label>
   <input id="shipping" type="number" value="1981" oninput="onDataChange()">
@@ -134,8 +134,11 @@
 <button class="btn btn-copy" onclick="copyText()">📋 複製通知訊息</button>
 
 <script>
+let currentBatch = "批次1";
+
 window.onload = function() {
-  loadBatch();
+  currentBatch = document.getElementById('batch').value.trim() || "批次1";
+  loadBatchData(currentBatch);
 };
 
 function onDataChange() {
@@ -143,37 +146,41 @@ function onDataChange() {
   calc();
 }
 
-function addRow(data = {}) {
-  let tbody = document.getElementById('tbody');
-  let r = tbody.insertRow(-1);
-
-  r.insertCell(0).innerText = tbody.rows.length;
-  r.insertCell(1).innerHTML = `<input value="${data.name || ''}" oninput="onDataChange()">`;
-  r.insertCell(2).innerHTML = `<input value="${data.product || ''}" oninput="onDataChange()">`;
-  r.insertCell(3).innerHTML = `<input value="${data.tracking || ''}" oninput="onDataChange()">`;
-  r.insertCell(4).innerHTML = `<input type="number" step="0.01" value="${data.weight || ''}" oninput="onDataChange()">`;
-  r.insertCell(5).innerText = '0.00'; // 含外箱重量
-  r.insertCell(6).innerText = '$0';    // 費用
-  r.insertCell(7).innerHTML = `<button class="btn-del" onclick="delRow(this)">❌</button>`;
-
-  onDataChange();
+function loadBatch() {
+  let newBatch = document.getElementById('batch').value.trim() || "批次1";
+  currentBatch = newBatch;
+  loadBatchData(currentBatch);
 }
 
-function delRow(btn) {
-  btn.parentNode.parentNode.remove();
-  updateIndex();
-  onDataChange();
-}
-
-function updateIndex() {
+function loadBatchData(batchName) {
+  let saved = localStorage.getItem('korea_ship_' + batchName);
   let tbody = document.getElementById('tbody');
-  for (let i = 0; i < tbody.rows.length; i++) {
-    tbody.rows[i].cells[0].innerText = i + 1;
+  
+  tbody.innerHTML = '';
+
+  if (saved) {
+    let obj = JSON.parse(saved);
+    document.getElementById('shipping').value = obj.shipping !== undefined ? obj.shipping : 0;
+    document.getElementById('tax').value = obj.tax !== undefined ? obj.tax : 0;
+    document.getElementById('total-package-weight').value = obj.totalPkgWeight !== undefined ? obj.totalPkgWeight : 0;
+    if (obj.data && obj.data.length > 0) {
+      obj.data.forEach(d => addRow(d, false));
+    } else {
+      addRow({}, false);
+    }
+  } else {
+    // 預設預設值
+    document.getElementById('shipping').value = 1981;
+    document.getElementById('tax').value = 460;
+    document.getElementById('total-package-weight').value = 2.5;
+    addRow({}, false);
   }
+  
+  calc();
 }
 
 function save() {
-  let batch = document.getElementById('batch').value;
+  let batchName = document.getElementById('batch').value.trim() || "批次1";
   let shipping = document.getElementById('shipping').value;
   let tax = document.getElementById('tax').value;
   let totalPkgWeight = document.getElementById('total-package-weight').value;
@@ -190,26 +197,35 @@ function save() {
     });
   }
 
-  localStorage.setItem(batch, JSON.stringify({ data, shipping, tax, totalPkgWeight }));
+  localStorage.setItem('korea_ship_' + batchName, JSON.stringify({ data, shipping, tax, totalPkgWeight }));
 }
 
-function loadBatch() {
-  let batch = document.getElementById('batch').value;
-  let saved = localStorage.getItem(batch);
+function addRow(data = {}, autoCalc = true) {
   let tbody = document.getElementById('tbody');
-  
-  tbody.innerHTML = '';
+  let r = tbody.insertRow(-1);
 
-  if (saved) {
-    let obj = JSON.parse(saved);
-    document.getElementById('shipping').value = obj.shipping || 0;
-    document.getElementById('tax').value = obj.tax || 0;
-    document.getElementById('total-package-weight').value = obj.totalPkgWeight || 0;
-    if (obj.data && obj.data.length > 0) {
-      obj.data.forEach(d => addRow(d));
-    }
-  } else {
-    addRow();
+  r.insertCell(0).innerText = tbody.rows.length;
+  r.insertCell(1).innerHTML = `<input value="${data.name || ''}" oninput="onDataChange()">`;
+  r.insertCell(2).innerHTML = `<input value="${data.product || ''}" oninput="onDataChange()">`;
+  r.insertCell(3).innerHTML = `<input value="${data.tracking || ''}" oninput="onDataChange()">`;
+  r.insertCell(4).innerHTML = `<input type="number" step="0.01" value="${data.weight || ''}" oninput="onDataChange()">`;
+  r.insertCell(5).innerText = '0.00';
+  r.insertCell(6).innerText = '$0';
+  r.insertCell(7).innerHTML = `<button class="btn-del" onclick="delRow(this)">❌</button>`;
+
+  if (autoCalc) onDataChange();
+}
+
+function delRow(btn) {
+  btn.parentNode.parentNode.remove();
+  updateIndex();
+  onDataChange();
+}
+
+function updateIndex() {
+  let tbody = document.getElementById('tbody');
+  for (let i = 0; i < tbody.rows.length; i++) {
+    tbody.rows[i].cells[0].innerText = i + 1;
   }
 }
 
@@ -217,7 +233,7 @@ function calc() {
   let tbody = document.getElementById('tbody');
   let shipping = +document.getElementById('shipping').value || 0;
   let tax = +document.getElementById('tax').value || 0;
-  let totalPkgWeight = +document.getElementById('total-package-weight').value || 0; // 包裹總重
+  let totalPkgWeight = +document.getElementById('total-package-weight').value || 0;
   let totalCost = shipping + tax;
 
   let rawWeights = [];
@@ -226,32 +242,26 @@ function calc() {
     rawWeights.push(isNaN(val) ? 0 : val);
   }
 
-  let totalItemWeight = rawWeights.reduce((a, b) => a + b, 0); // 物品實重總和
+  let totalItemWeight = rawWeights.reduce((a, b) => a + b, 0);
   
-  // 自動推算外箱重 (總重 - 商品實重總和)
+  // 自動推算外箱重 (包裹總重 - 物品實重總和)
   let boxWeight = Math.max(0, totalPkgWeight - totalItemWeight);
   document.getElementById('calculated-box-weight').innerText = boxWeight.toFixed(2);
 
   let costs = [];
   let itemWithBoxWeights = [];
 
-  // 計算分攤外箱後的重量與費用
   for (let i = 0; i < rawWeights.length; i++) {
     let ratio = totalItemWeight ? (rawWeights[i] / totalItemWeight) : 0;
-    
-    // 按比例分攤外箱重量
     let finalW = rawWeights[i] + (boxWeight * ratio);
     itemWithBoxWeights.push(finalW);
 
-    // 費用計算 (按重量比例分攤金額)
     costs[i] = totalItemWeight ? Math.round(ratio * totalCost) : 0;
   }
 
-  // 費用四捨五入差額補足
   let diff = totalCost - costs.reduce((a, b) => a + b, 0);
   if (costs.length > 0) costs[costs.length - 1] += diff;
 
-  // 按姓名合併統計
   let merged = {};
 
   for (let i = 0; i < tbody.rows.length; i++) {
@@ -260,7 +270,6 @@ function calc() {
     let finalW = itemWithBoxWeights[i];
     let c = costs[i];
 
-    // 更新表格顯示
     tbody.rows[i].cells[5].innerText = `${finalW.toFixed(2)}`;
     tbody.rows[i].cells[6].innerText = `$${c}`;
 
@@ -271,13 +280,12 @@ function calc() {
     merged[name].count++;
   }
 
-  // 更新頁面總計顯示
   document.getElementById('total-item-weight').innerText = `${totalItemWeight.toFixed(2)} kg`;
   document.getElementById('total-final-weight').innerText = `${totalPkgWeight.toFixed(2)} kg`;
   document.getElementById('total-cost-display').innerText = `$${totalCost}`;
 
-  // 產生 LINE 通知文字
-  let text = `📦 韓國集運費用通知\n`;
+  let batchName = document.getElementById('batch').value.trim() || "批次1";
+  let text = `📦 韓國集運費用通知 (${batchName})\n`;
   text += `總費用：$${totalCost} (運費:${shipping} + 關稅:${tax})\n`;
   text += `包裹總重：${totalPkgWeight.toFixed(2)} kg (商品實重:${totalItemWeight.toFixed(2)}kg + 推算外箱:${boxWeight.toFixed(2)}kg)\n`;
   text += `-------------------\n`;
