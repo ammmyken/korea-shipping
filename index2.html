@@ -7,32 +7,33 @@
 <style>
   body { 
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-    padding: 20px; 
+    padding: 15px; 
     max-width: 980px; 
     margin: 0 auto; 
     background-color: #f8f9fa;
     color: #333;
   }
-  h2, h3 { margin-bottom: 12px; color: #222; }
+  h2, h3 { margin-bottom: 10px; color: #222; }
   .control-panel {
     background: #fff;
-    padding: 15px 20px;
+    padding: 15px;
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     margin-bottom: 15px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
   }
-  label { font-weight: bold; }
+  label { font-weight: bold; font-size: 14px; }
   input[type="text"], input[type="number"], select { 
-    padding: 6px 10px; 
+    padding: 6px 8px; 
     border: 1px solid #ccc; 
     border-radius: 4px;
-    width: 90px;
+    font-size: 14px;
   }
-  table input { width: 90%; margin: 0; box-sizing: border-box; }
+  select { background: #fff; cursor: pointer; }
+  table input { width: 95%; margin: 0; box-sizing: border-box; padding: 4px; }
   table { 
     border-collapse: collapse; 
     width: 100%; 
@@ -41,25 +42,32 @@
     overflow: hidden;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
   }
-  td, th { border: 1px solid #eee; padding: 10px; text-align: center; }
+  td, th { border: 1px solid #eee; padding: 8px 4px; text-align: center; font-size: 14px; }
   th { background-color: #f1f3f5; font-weight: 600; }
   tr:hover { background-color: #fdfdfd; }
+  
   .btn { 
-    padding: 8px 14px; 
+    padding: 6px 12px; 
     border: none; 
     border-radius: 5px; 
     cursor: pointer; 
     font-weight: bold;
+    font-size: 13px;
     transition: background 0.2s;
   }
   .btn-add { background-color: #40c057; color: white; }
   .btn-add:hover { background-color: #37b24d; }
   .btn-copy { background-color: #228be6; color: white; margin-top: 8px; }
   .btn-copy:hover { background-color: #1c7ed6; }
+  .btn-sub { background-color: #e9ecef; color: #495057; border: 1px solid #ced4da; }
+  .btn-sub:hover { background-color: #dee2e6; }
+  .btn-danger { background-color: #ff6b6b; color: white; }
+  .btn-danger:hover { background-color: #fa5252; }
   .btn-del { background: none; border: none; cursor: pointer; font-size: 16px; }
+
   textarea { 
     width: 100%; 
-    height: 200px; 
+    height: 180px; 
     margin-top: 8px; 
     padding: 10px;
     border: 1px solid #ccc;
@@ -71,11 +79,67 @@
   .summary-row { font-weight: bold; background-color: #f8f9fa; }
   .calc-box {
     background: #e7f5ff;
-    padding: 6px 12px;
+    padding: 6px 10px;
     border-radius: 6px;
     color: #1864ab;
     font-weight: bold;
+    font-size: 13px;
+  }
+
+  /* 快捷填寫面板樣式 */
+  .quick-panel {
+    background: #fff;
+    padding: 12px 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    margin-bottom: 15px;
+    border-left: 4px solid #228be6;
+  }
+  .quick-title {
+    font-weight: bold;
     font-size: 14px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .quick-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 6px;
+    align-items: center;
+  }
+  .quick-btn {
+    background: #f1f3f5;
+    border: 1px solid #dcdfe6;
+    border-radius: 15px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    color: #333;
+    transition: all 0.2s;
+  }
+  .quick-btn:hover {
+    background: #e7f5ff;
+    border-color: #74c0fc;
+    color: #1971c2;
+  }
+  .quick-label {
+    font-size: 12px;
+    color: #666;
+    width: 65px;
+    font-weight: bold;
+  }
+  .edit-preset-link {
+    font-size: 12px;
+    color: #228be6;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+  input.focused-input {
+    border: 2px solid #228be6 !important;
+    background-color: #f8f9fa;
   }
 </style>
 </head>
@@ -86,35 +150,63 @@
 
 <div class="control-panel">
   <label>批次：</label>
-  <input id="batch" value="批次1" style="width: 80px;" oninput="loadBatch()" placeholder="如:批次1">
+  <select id="batch-select" onchange="switchBatch()"></select>
+  <button class="btn btn-sub" onclick="addNewBatch()">➕ 新增</button>
+  <button class="btn btn-sub" onclick="renameCurrentBatch()">✏️ 改名</button>
+  <button class="btn btn-danger" onclick="deleteCurrentBatch()" style="padding: 6px 8px;">🗑️</button>
+
+  <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 4px;"></span>
 
   <label>運費：</label>
-  <input id="shipping" type="number" value="1981" oninput="onDataChange()">
+  <input id="shipping" type="number" value="1981" style="width: 65px;" oninput="onDataChange()">
 
   <label>關稅：</label>
-  <input id="tax" type="number" value="460" oninput="onDataChange()">
+  <input id="tax" type="number" value="460" style="width: 60px;" oninput="onDataChange()">
 
   <label>包裹總重(kg)：</label>
-  <input id="total-package-weight" type="number" step="0.01" value="2.5" oninput="onDataChange()">
+  <input id="total-package-weight" type="number" step="0.01" value="2.5" style="width: 65px;" oninput="onDataChange()">
 
   <div class="calc-box">
-    推算外箱重：<span id="calculated-box-weight">0.00</span> kg
+    推算外箱：<span id="calculated-box-weight">0.00</span> kg
   </div>
 
   <button class="btn btn-add" onclick="addRow()">➕ 新增包裹</button>
 </div>
 
+<!-- 常用點選面板 -->
+<div class="quick-panel">
+  <div class="quick-title">
+    <span>⚡ 常用點選（點擊直接填入目前點選的空格）</span>
+    <span class="edit-preset-link" onclick="managePresets()">⚙️ 管理常用清單</span>
+  </div>
+  
+  <div class="quick-group">
+    <span class="quick-label">常用姓名：</span>
+    <div id="preset-names" class="quick-group" style="margin:0;"></div>
+  </div>
+  
+  <div class="quick-group">
+    <span class="quick-label">常用品項：</span>
+    <div id="preset-products" class="quick-group" style="margin:0;"></div>
+  </div>
+
+  <div class="quick-group">
+    <span class="quick-label">常用重量：</span>
+    <div id="preset-weights" class="quick-group" style="margin:0;"></div>
+  </div>
+</div>
+
 <table id="table">
   <thead>
     <tr>
-      <th width="6%">序號</th>
-      <th width="16%">姓名</th>
-      <th width="18%">品項</th>
+      <th width="5%">序號</th>
+      <th width="17%">姓名</th>
+      <th width="20%">品項</th>
       <th width="18%">單號</th>
-      <th width="12%">單件重量(kg)</th>
-      <th width="14%">含外箱重(kg)</th>
-      <th width="10%">費用</th>
-      <th width="6%">刪除</th>
+      <th width="13%">單件重量(kg)</th>
+      <th width="13%">含外箱重(kg)</th>
+      <th width="9%">費用</th>
+      <th width="5%">刪</th>
     </tr>
   </thead>
   <tbody id="tbody"></tbody>
@@ -134,22 +226,188 @@
 <button class="btn btn-copy" onclick="copyText()">📋 複製通知訊息</button>
 
 <script>
-let currentBatch = "批次1";
+let lastFocusedInput = null;
 
-window.onload = function() {
-  currentBatch = document.getElementById('batch').value.trim() || "批次1";
-  loadBatchData(currentBatch);
+// 預設常用選單
+let presets = {
+  names: ['小明', '小美', '阿花'],
+  products: ['10cm娃衣', '小卡', '衣服', '周邊'],
+  weights: ['0.05', '0.1', '0.15', '0.2', '0.5']
 };
 
+window.onload = function() {
+  loadPresets();
+  renderPresetButtons();
+  initBatchList();
+};
+
+// --- 批次管理邏輯 ---
+function getBatchList() {
+  let list = localStorage.getItem('korea_ship_batch_list');
+  return list ? JSON.parse(list) : ['批次1'];
+}
+
+function saveBatchList(list) {
+  localStorage.setItem('korea_ship_batch_list', JSON.stringify(list));
+}
+
+function initBatchList(targetBatch = null) {
+  let list = getBatchList();
+  let select = document.getElementById('batch-select');
+  select.innerHTML = '';
+
+  list.forEach(b => {
+    let opt = document.createElement('option');
+    opt.value = b;
+    opt.innerText = b;
+    select.appendChild(opt);
+  });
+
+  let current = targetBatch || list[0];
+  select.value = current;
+  loadBatchData(current);
+}
+
+function switchBatch() {
+  let current = document.getElementById('batch-select').value;
+  loadBatchData(current);
+}
+
+function addNewBatch() {
+  let list = getBatchList();
+  let name = prompt("請輸入新批次名稱：", `批次${list.length + 1}`);
+  if (!name) return;
+  name = name.trim();
+  if (!name) return;
+
+  if (list.includes(name)) {
+    alert("已有相同的批次名稱！");
+    return;
+  }
+
+  list.push(name);
+  saveBatchList(list);
+  initBatchList(name);
+}
+
+function renameCurrentBatch() {
+  let select = document.getElementById('batch-select');
+  let oldName = select.value;
+  let newName = prompt(`修改「${oldName}」的名稱為：`, oldName);
+  if (!newName) return;
+  newName = newName.trim();
+  if (!newName || newName === oldName) return;
+
+  let list = getBatchList();
+  if (list.includes(newName)) {
+    alert("已有相同的批次名稱！");
+    return;
+  }
+
+  // 移轉資料
+  let data = localStorage.getItem('korea_ship_' + oldName);
+  if (data) {
+    localStorage.setItem('korea_ship_' + newName, data);
+    localStorage.removeItem('korea_ship_' + oldName);
+  }
+
+  // 更新清單
+  let idx = list.indexOf(oldName);
+  if (idx !== -1) list[idx] = newName;
+  saveBatchList(list);
+  initBatchList(newName);
+}
+
+function deleteCurrentBatch() {
+  let select = document.getElementById('batch-select');
+  let currentName = select.value;
+  let list = getBatchList();
+
+  if (list.length <= 1) {
+    alert("至少要保留一個批次，無法刪除！");
+    return;
+  }
+
+  if (confirm(`確定要刪除「${currentName}」及其所有包裹資料嗎？`)) {
+    localStorage.removeItem('korea_ship_' + currentName);
+    list = list.filter(b => b !== currentName);
+    saveBatchList(list);
+    initBatchList(list[0]);
+  }
+}
+
+// --- 常用選單 logic ---
+function loadPresets() {
+  let saved = localStorage.getItem('korea_ship_presets');
+  if (saved) presets = JSON.parse(saved);
+}
+
+function savePresets() {
+  localStorage.setItem('korea_ship_presets', JSON.stringify(presets));
+  renderPresetButtons();
+}
+
+function renderPresetButtons() {
+  renderGroup('preset-names', presets.names, 'name');
+  renderGroup('preset-products', presets.products, 'product');
+  renderGroup('preset-weights', presets.weights, 'weight');
+}
+
+function renderGroup(elementId, items, type) {
+  let container = document.getElementById(elementId);
+  container.innerHTML = '';
+  items.forEach(val => {
+    let btn = document.createElement('button');
+    btn.className = 'quick-btn';
+    btn.innerText = val;
+    btn.type = 'button';
+    btn.onclick = () => fillPreset(val, type);
+    container.appendChild(btn);
+  });
+}
+
+function fillPreset(val, type) {
+  if (!lastFocusedInput) {
+    alert("請先點擊表格中要填寫的空格，再點擊快捷按鈕！");
+    return;
+  }
+  
+  // 檢查焦點欄位類型
+  let fieldType = lastFocusedInput.getAttribute('data-type');
+  if (type !== fieldType) {
+    // 嘗試在同列中尋找對應欄位
+    let row = lastFocusedInput.closest('tr');
+    if (row) {
+      let targetInput = row.querySelector(`input[data-type="${type}"]`);
+      if (targetInput) {
+        targetInput.value = val;
+        onDataChange();
+        return;
+      }
+    }
+  }
+
+  lastFocusedInput.value = val;
+  onDataChange();
+}
+
+function managePresets() {
+  let n = prompt("請輸入【常用姓名】（用半角逗號隔開）：", presets.names.join(','));
+  if (n !== null) presets.names = n.split(',').map(s => s.trim()).filter(Boolean);
+
+  let p = prompt("請輸入【常用品項】（用半角逗號隔開）：", presets.products.join(','));
+  if (p !== null) presets.products = p.split(',').map(s => s.trim()).filter(Boolean);
+
+  let w = prompt("請輸入【常用重量】（用半角逗號隔開）：", presets.weights.join(','));
+  if (w !== null) presets.weights = w.split(',').map(s => s.trim()).filter(Boolean);
+
+  savePresets();
+}
+
+// --- 資料儲存與計算 ---
 function onDataChange() {
   save();
   calc();
-}
-
-function loadBatch() {
-  let newBatch = document.getElementById('batch').value.trim() || "批次1";
-  currentBatch = newBatch;
-  loadBatchData(currentBatch);
 }
 
 function loadBatchData(batchName) {
@@ -160,16 +418,15 @@ function loadBatchData(batchName) {
 
   if (saved) {
     let obj = JSON.parse(saved);
-    document.getElementById('shipping').value = obj.shipping !== undefined ? obj.shipping : 0;
-    document.getElementById('tax').value = obj.tax !== undefined ? obj.tax : 0;
-    document.getElementById('total-package-weight').value = obj.totalPkgWeight !== undefined ? obj.totalPkgWeight : 0;
+    document.getElementById('shipping').value = obj.shipping !== undefined ? obj.shipping : 1981;
+    document.getElementById('tax').value = obj.tax !== undefined ? obj.tax : 460;
+    document.getElementById('total-package-weight').value = obj.totalPkgWeight !== undefined ? obj.totalPkgWeight : 2.5;
     if (obj.data && obj.data.length > 0) {
       obj.data.forEach(d => addRow(d, false));
     } else {
       addRow({}, false);
     }
   } else {
-    // 預設預設值
     document.getElementById('shipping').value = 1981;
     document.getElementById('tax').value = 460;
     document.getElementById('total-package-weight').value = 2.5;
@@ -180,7 +437,9 @@ function loadBatchData(batchName) {
 }
 
 function save() {
-  let batchName = document.getElementById('batch').value.trim() || "批次1";
+  let currentBatch = document.getElementById('batch-select').value;
+  if (!currentBatch) return;
+
   let shipping = document.getElementById('shipping').value;
   let tax = document.getElementById('tax').value;
   let totalPkgWeight = document.getElementById('total-package-weight').value;
@@ -197,7 +456,7 @@ function save() {
     });
   }
 
-  localStorage.setItem('korea_ship_' + batchName, JSON.stringify({ data, shipping, tax, totalPkgWeight }));
+  localStorage.setItem('korea_ship_' + currentBatch, JSON.stringify({ data, shipping, tax, totalPkgWeight }));
 }
 
 function addRow(data = {}, autoCalc = true) {
@@ -205,15 +464,21 @@ function addRow(data = {}, autoCalc = true) {
   let r = tbody.insertRow(-1);
 
   r.insertCell(0).innerText = tbody.rows.length;
-  r.insertCell(1).innerHTML = `<input value="${data.name || ''}" oninput="onDataChange()">`;
-  r.insertCell(2).innerHTML = `<input value="${data.product || ''}" oninput="onDataChange()">`;
-  r.insertCell(3).innerHTML = `<input value="${data.tracking || ''}" oninput="onDataChange()">`;
-  r.insertCell(4).innerHTML = `<input type="number" step="0.01" value="${data.weight || ''}" oninput="onDataChange()">`;
+  r.insertCell(1).innerHTML = `<input data-type="name" value="${data.name || ''}" onfocus="trackFocus(this)" oninput="onDataChange()">`;
+  r.insertCell(2).innerHTML = `<input data-type="product" value="${data.product || ''}" onfocus="trackFocus(this)" oninput="onDataChange()">`;
+  r.insertCell(3).innerHTML = `<input data-type="tracking" value="${data.tracking || ''}" onfocus="trackFocus(this)" oninput="onDataChange()">`;
+  r.insertCell(4).innerHTML = `<input data-type="weight" type="number" step="0.01" value="${data.weight || ''}" onfocus="trackFocus(this)" oninput="onDataChange()">`;
   r.insertCell(5).innerText = '0.00';
   r.insertCell(6).innerText = '$0';
   r.insertCell(7).innerHTML = `<button class="btn-del" onclick="delRow(this)">❌</button>`;
 
   if (autoCalc) onDataChange();
+}
+
+function trackFocus(input) {
+  if (lastFocusedInput) lastFocusedInput.classList.remove('focused-input');
+  lastFocusedInput = input;
+  lastFocusedInput.classList.add('focused-input');
 }
 
 function delRow(btn) {
@@ -243,8 +508,6 @@ function calc() {
   }
 
   let totalItemWeight = rawWeights.reduce((a, b) => a + b, 0);
-  
-  // 自動推算外箱重 (包裹總重 - 物品實重總和)
   let boxWeight = Math.max(0, totalPkgWeight - totalItemWeight);
   document.getElementById('calculated-box-weight').innerText = boxWeight.toFixed(2);
 
@@ -284,8 +547,10 @@ function calc() {
   document.getElementById('total-final-weight').innerText = `${totalPkgWeight.toFixed(2)} kg`;
   document.getElementById('total-cost-display').innerText = `$${totalCost}`;
 
-  let batchName = document.getElementById('batch').value.trim() || "批次1";
-  let text = `📦 韓國集運費用通知 (${batchName})\n`;
+  let batchSelect = document.getElementById('batch-select');
+  let currentBatch = batchSelect ? batchSelect.value : "批次1";
+  
+  let text = `📦 韓國集運費用通知 (${currentBatch})\n`;
   text += `總費用：$${totalCost} (運費:${shipping} + 關稅:${tax})\n`;
   text += `包裹總重：${totalPkgWeight.toFixed(2)} kg (商品實重:${totalItemWeight.toFixed(2)}kg + 推算外箱:${boxWeight.toFixed(2)}kg)\n`;
   text += `-------------------\n`;
