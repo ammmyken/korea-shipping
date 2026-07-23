@@ -8,7 +8,7 @@
   body { 
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
     padding: 15px; 
-    max-width: 980px; 
+    max-width: 1000px; 
     margin: 0 auto; 
     background-color: #f8f9fa;
     color: #333;
@@ -64,15 +64,27 @@
   .btn-danger { background-color: #ff6b6b; color: white; }
   .btn-danger:hover { background-color: #fa5252; }
   
+  /* 按鈕樣式調整：加大間距與點擊區域 */
   .btn-icon { 
-    background: none; 
-    border: none; 
+    background: #f1f3f5; 
+    border: 1px solid #ced4da; 
+    border-radius: 4px;
     cursor: pointer; 
-    font-size: 14px; 
-    padding: 2px 4px;
-    line-height: 1;
+    font-size: 12px; 
+    padding: 3px 6px;
+    margin: 0 2px;
+    transition: background 0.2s;
   }
-  .btn-icon:hover { opacity: 0.7; }
+  .btn-icon:hover { background: #e9ecef; }
+  .btn-del {
+    background: #fff0f0;
+    border: 1px solid #ffc9c9;
+    color: #e03131;
+    margin-left: 8px; /* 拉開與排序按鈕的距離 */
+  }
+  .btn-del:hover {
+    background: #ffe3e3;
+  }
 
   textarea { 
     width: 100%; 
@@ -160,8 +172,9 @@
   <label>批次：</label>
   <select id="batch-select" onchange="switchBatch()"></select>
   <button class="btn btn-sub" onclick="addNewBatch()">➕ 新增</button>
+  <button class="btn btn-sub" onclick="duplicateCurrentBatch()" title="複製目前批次的內容建立新批次">📋 複製批次</button>
   <button class="btn btn-sub" onclick="renameCurrentBatch()">✏️ 改名</button>
-  <button class="btn btn-danger" onclick="deleteCurrentBatch()" style="padding: 6px 8px;">🗑️</button>
+  <button class="btn btn-danger" onclick="deleteCurrentBatch()" style="padding: 6px 8px;" title="刪除當前批次">🗑️</button>
 
   <span style="border-left: 1px solid #ccc; height: 20px; margin: 0 4px;"></span>
 
@@ -213,13 +226,13 @@
   <thead>
     <tr>
       <th width="5%">序號</th>
-      <th width="16%">姓名</th>
-      <th width="19%">品項</th>
-      <th width="17%">單號</th>
+      <th width="15%">姓名</th>
+      <th width="18%">品項</th>
+      <th width="16%">單號</th>
       <th width="12%">單件重量(kg)</th>
       <th width="12%">含外箱重(kg)</th>
       <th width="8%">費用</th>
-      <th width="11%">操作</th>
+      <th width="14%">操作</th>
     </tr>
   </thead>
   <tbody id="tbody"></tbody>
@@ -319,12 +332,10 @@ function handleFileSelect(event) {
   event.target.value = '';
 }
 
-// 增強型批次掃描：防止舊批次因清單丟失而隱藏
 function getBatchList() {
   let list = localStorage.getItem('korea_ship_batch_list');
   let batchArray = list ? JSON.parse(list) : [];
 
-  // 自動掃描所有以 korea_ship_ 開頭的 key，確保舊資料不漏掉
   for (let i = 0; i < localStorage.length; i++) {
     let key = localStorage.key(i);
     if (key.startsWith('korea_ship_') && key !== 'korea_ship_batch_list' && key !== 'korea_ship_presets') {
@@ -384,6 +395,31 @@ function addNewBatch() {
   list.push(name);
   saveBatchList(list);
   initBatchList(name);
+}
+
+// 複製當前批次
+function duplicateCurrentBatch() {
+  let currentName = document.getElementById('batch-select').value;
+  let list = getBatchList();
+  
+  let newName = prompt(`複製「${currentName}」的內容，請輸入新批次名稱：`, `${currentName}_複製`);
+  if (!newName) return;
+  newName = newName.trim();
+  if (!newName) return;
+
+  if (list.includes(newName)) {
+    alert("已有相同的批次名稱！");
+    return;
+  }
+
+  let currentData = localStorage.getItem('korea_ship_' + currentName);
+  if (currentData) {
+    localStorage.setItem('korea_ship_' + newName, currentData);
+  }
+
+  list.push(newName);
+  saveBatchList(list);
+  initBatchList(newName);
 }
 
 function renameCurrentBatch() {
@@ -565,7 +601,7 @@ function addRow(data = {}, autoCalc = true) {
   r.insertCell(7).innerHTML = `
     <button class="btn-icon" onclick="moveRow(this, -1)" title="上移">▲</button>
     <button class="btn-icon" onclick="moveRow(this, 1)" title="下移">▼</button>
-    <button class="btn-icon" onclick="delRow(this)" title="刪除" style="color:red;">❌</button>
+    <button class="btn-icon btn-del" onclick="delRow(this)" title="刪除">❌</button>
   `;
 
   if (autoCalc) onDataChange();
